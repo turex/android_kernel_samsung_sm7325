@@ -892,6 +892,7 @@ static int qti_flash_led_calc_max_avail_current(
 		vph_flash_uv, vin_flash_uv, p_flash_fw;
 	union power_supply_propval prop = {};
 
+#if IS_ENABLED(CONFIG_QTI_BATTERY_CHARGER)
 	rc = qti_battery_charger_get_prop("battery", BATTERY_RESISTANCE,
 						&rbatt_uohm);
 	if (rc < 0) {
@@ -899,6 +900,9 @@ static int qti_flash_led_calc_max_avail_current(
 				rc);
 		return rc;
 	}
+#else
+	rbatt_uohm = 0;
+#endif
 
 	if (!rbatt_uohm) {
 		*max_current_ma = MAX_FLASH_CURRENT_MA;
@@ -909,7 +913,11 @@ static int qti_flash_led_calc_max_avail_current(
 		led->batt_psy = power_supply_get_by_name("battery");
 
 	if (!led->batt_psy) {
+#if IS_ENABLED(CONFIG_QTI_BATTERY_CHARGER)
 		pr_err("Failed to get battery power supply, rc=%d\n", rc);
+#else
+		pr_err("Failed to get battery power supply\n");
+#endif
 		return -EINVAL;
 	}
 
@@ -1433,6 +1441,11 @@ static int register_switch_device(struct qti_flash_led *led,
 		pr_err("Failed to read led mask rc=%d\n", rc);
 		return rc;
 	}
+
+#if defined(CONFIG_SEC_XCOVERPRO2_PROJECT)
+	snode->led_mask = 1;
+#endif
+
 	if (!snode->led_mask || snode->led_mask > LED_MASK_ALL(led)) {
 		pr_err("led-mask %#x invalid\n", snode->led_mask);
 		return -EINVAL;
